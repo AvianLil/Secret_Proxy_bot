@@ -6,7 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiohttp import web
 
 # ТОКЕН (убедись, что он верный)
-TOKEN = "8523176868:AAHmV_fqwqLuVrUY5bvU8c_NxgKDwikLvM"
+TOKEN = "8523176868:AAHmv_fqwqqLuVrUY5bvU8c_NxgKDWikLvM"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
@@ -105,4 +105,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
