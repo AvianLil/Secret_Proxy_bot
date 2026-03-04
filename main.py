@@ -1,3 +1,18 @@
+from aiohttp import web
+import threading
+
+# Мини-сервер для обмана Render
+async def hello(request):
+    return web.Response(text="Bot is alive!")
+
+def run_server():
+    app = web.Application()
+    app.add_routes([web.get('/', hello)])
+    web.run_app(app, port=10000) # Render использует порт 10000 или PORT из среды
+
+# Запусти это в отдельном потоке перед запуском бота
+threading.Thread(target=run_server, daemon=True).start()
+
 import asyncio
 import random
 from aiogram import Bot, Dispatcher, types, F
@@ -63,4 +78,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
