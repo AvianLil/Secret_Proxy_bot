@@ -5,97 +5,88 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiohttp import web
 
-# ТОКЕН (убедись, что он верный)
 TOKEN = "8523176868:AAHmv_fqwqqLuVrUY5bvU8c_NxgKDWikLvM"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Данные для бота
-SERVER_IPS = {
-    "funtime": ["ft-proxy.net:25565", "play.funtime.su"],
-    "holyworld": ["holy-proxy.ru:25565"],
-    "reallyworld": ["rw-proxy.com:25565"]
+# Ссылки на твои картинки (ЗАМЕНИ НА СВОИ)
+IMG_MAIN = "https://i.imgur.com/8nNnNnN.jpg"
+IMG_PROFILE = "https://i.imgur.com/your_profile_image.jpg" # Твоя картинка профиля
+
+# База реальных прокси (формат IP:PORT:USER:PASS или просто IP:PORT)
+PROXIES = {
+    "funtime": ["154.23.11.5:25565", "92.112.43.10:1080"],
+    "holyworld": ["185.244.11.22:8000"],
+    "reallyworld": ["45.132.12.55:3128"]
 }
 
-# Кнопка "Назад" для переиспользования
-def back_button():
-    builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu"))
-    return builder.as_markup()
-
-# Главное меню
+# --- КЛАВИАТУРЫ ---
 def main_kb():
     builder = InlineKeyboardBuilder()
     builder.row(types.InlineKeyboardButton(text="🍴 Купить прокси", callback_data="buy"))
-    builder.row(
-        types.InlineKeyboardButton(text="🎮 Профиль", callback_data="profile"),
-        types.InlineKeyboardButton(text="🔮 Поддержка", url="https://t.me/твой_ник")
-    )
-    builder.row(
-        types.InlineKeyboardButton(text="🔵 Подписка", callback_data="sub"),
-        types.InlineKeyboardButton(text="🧬 Конструктор", callback_data="build")
-    )
+    builder.row(types.InlineKeyboardButton(text="🎮 Профиль", callback_data="profile"),
+                types.InlineKeyboardButton(text="🔮 Поддержка", url="https://t.me/твой_ник"))
+    builder.row(types.InlineKeyboardButton(text="🔵 Подписка", callback_data="sub"),
+                types.InlineKeyboardButton(text="🧬 Конструктор", callback_data="build"))
     return builder.as_markup()
 
-# Обработчик команды /start
+def profile_kb():
+    builder = InlineKeyboardBuilder()
+    builder.row(types.InlineKeyboardButton(text="💧 Подписка на прокси", callback_data="sub"),
+                types.InlineKeyboardButton(text="Пополнить баланс", callback_data="topup"))
+    builder.row(types.InlineKeyboardButton(text="Купленные прокси", callback_data="my_list"))
+    builder.row(types.InlineKeyboardButton(text="Реферальная программа", callback_data="ref"))
+    builder.row(types.InlineKeyboardButton(text="Применить промокод", callback_data="promo"))
+    builder.row(types.InlineKeyboardButton(text="Назад", callback_data="to_main"))
+    return builder.as_markup()
+
+# --- ОБРАБОТЧИКИ ---
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.answer("👋 Добро пожаловать в FlugerProxy!\n\nВыбери нужный раздел ниже:", 
-                         reply_markup=main_kb(), parse_mode="Markdown")
+    await message.answer_photo(photo=IMG_MAIN, caption="👋 Добро пожаловать в FlugerProxy!\n\nВыбери раздел:", 
+                               reply_markup=main_kb(), parse_mode="Markdown")
 
-# Возврат в главное меню (редактирование старого сообщения)
-@dp.callback_query(F.data == "main_menu")
-async def back_to_main(call: types.CallbackQuery):
-    await call.message.edit_text("👋 Добро пожаловать в FlugerProxy!\n\nВыбери нужный раздел ниже:", 
-                                 reply_markup=main_kb(), parse_mode="Markdown")
-    await call.answer()
+@dp.callback_query(F.data == "to_main")
+async def to_main(call: types.CallbackQuery):
+    await call.message.edit_media(types.InputMediaPhoto(media=IMG_MAIN, caption="👋 Главное меню:"), 
+                                  reply_markup=main_kb())
 
-# Раздел ПРОФИЛЬ (заменяет старое сообщение)
 @dp.callback_query(F.data == "profile")
 async def show_profile(call: types.CallbackQuery):
-    text = (f"👤 Ваш профиль\n\n"
-            f"🆔 ID: {call.from_user.id}\n"
-            f"💰 Баланс: 0.00 ₽\n"
-            f"💎 Статус: Бесплатный")
-    await call.message.edit_text(text, reply_markup=back_button(), parse_mode="Markdown")
-    await call.answer()
+    text = f"✨ Профиль\n\nЮзер: @{call.from_user.username}\nБаланс: 0.00 ₽\n\nПодписка: нет подписки"
+    await call.message.edit_media(types.InputMediaPhoto(media=IMG_PROFILE, caption=text), 
+                                  reply_markup=profile_kb())
 
-# Раздел ВЫБОР СЕРВЕРА
 @dp.callback_query(F.data == "buy")
-async def choose_server(call: types.CallbackQuery):
+async def buy_menu(call: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="⚔️ FunTime", callback_data="get_ft"))
-    builder.row(types.InlineKeyboardButton(text="🌟 HolyWorld", callback_data="get_hw"))
-    builder.row(types.InlineKeyboardButton(text="💎 ReallyWorld", callback_data="get_rw"))
-    builder.row(types.InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu"))
-    
-    await call.message.edit_text("🎯 Выбери сервер для прокси:", 
-                                 reply_markup=builder.as_markup(), parse_mode="Markdown")
+    builder.row(types.InlineKeyboardButton(text="⚔️ FunTime", callback_data="get:funtime"))
+    builder.row(types.InlineKeyboardButton(text="🌟 HolyWorld", callback_data="get:holyworld"))
+    builder.row(types.InlineKeyboardButton(text="💎 ReallyWorld", callback_data="get:reallyworld"))
+    builder.row(types.InlineKeyboardButton(text="Назад", callback_data="to_main"))
+    await call.message.edit_caption(caption="🎯 Выбери сервер:", reply_markup=builder.as_markup())
+
+@dp.callback_query(F.data.startswith("get:"))
+async def give_proxy(call: types.CallbackQuery):
+    srv = call.data.split(":")[1]
+    proxy = random.choice(PROXIES[srv])
+    # Выдаем новым сообщением, чтобы было удобно копировать на телефоне
+    await call.message.answer(f"🚀 Твой прокси для {srv.upper()}:\n\n{proxy}\n\n_Нажми на IP, чтобы скопировать_")
     await call.answer()
 
-# Выдача прокси (новым сообщением, чтобы его можно было скопировать)
-@dp.callback_query(F.data.startswith("get_"))
-async def send_proxy(call: types.CallbackQuery):
-    srv_code = call.data.split("_")[1]
-    srv_name = {"ft": "funtime", "hw": "holyworld", "rw": "reallyworld"}.get(srv_code)
-    proxy = random.choice(SERVER_IPS[srv_name])
-    
-    await call.message.answer(f"🚀 Твой прокси для {srv_name.upper()}:\n\n{proxy}\n\n_Нажми на IP, чтобы скопировать_", 
-                              parse_mode="Markdown", reply_markup=back_button())
-    await call.answer()
+# --- СЕРВЕР И МЕНЮ КОМАНД ---
+async def set_commands(bot: Bot):
+    commands = [
+        types.BotCommand(command="start", description="Главное меню"),
+        types.BotCommand(command="profile", description="Мой профиль"),
+        types.BotCommand(command="undo", description="Отмена/Назад")
+    ]
+    await bot.set_my_commands(commands)
 
-# Заглушки для красоты
-@dp.callback_query(F.data.in_({"sub", "build"}))
-async def coming_soon(call: types.CallbackQuery):
-    await call.message.edit_text("🚧 Этот раздел находится в разработке", 
-                                 reply_markup=back_button(), parse_mode="Markdown")
-    await call.answer()
-
-# Настройка сервера для Render
-async def handle(request):
-    return web.Response(text="Bot is running")
+async def handle(request): return web.Response(text="Bot Live")
 
 async def main():
+    await set_commands(bot)
     app = web.Application()
     app.router.add_get("/", handle)
     runner = web.AppRunner(app)
